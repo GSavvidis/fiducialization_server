@@ -83,7 +83,7 @@ for indx, proc in enumerate(process):
     df_v = df_v.query("startbin_north >= 0 & startbin_south >= 0")
 
     # 
-    flag = True
+    flag_1 = True
     iterations = 20000
 
     # loop over total number of events
@@ -191,97 +191,252 @@ for indx, proc in enumerate(process):
             # pulses
             n_indexes = (len(df_best_match['index_south']))
             
+            # flag to jump iterations from ind to new_ind
+            flag_2 = False
+           
             # note: len(df_best_match['index_south']) = npulses_north
             for ind, south_v_index in enumerate(df_best_match['index_south']):
 
-                print("event=", event)
-                print("index_south=", south_v_index)
-                print("ind=", ind)
                 df_instances = df_best_match.query("index_south == '%s' " %str(south_v_index))
                 instances = len(df_instances)
-                
+               
+                # flag to jump iterations from ind to new_ind
+                if(flag_2 == True):
+                    if(ind in (ind, new_ind)):
+                        continue
+
                 if(instances > 1):
-                    how_many = instances
-                    print(df_instances)
-                    print("")
+                    flag_2 = True
                     
+                    how_many = instances
+
+                    kept_min_delta = np.min(df_instances["min_delta_i"])
+                    kept_min_delta_idx = df_instances["min_delta_i"].idxmin()
+
+                    kept_v_idx_north = df_instances.query("min_delta_i == '%s'" %str(kept_min_delta))["index_north"]
+                    kept_v_idx_south = df_instances.query("min_delta_i == '%s'" %str(kept_min_delta))["index_south"]
+
+                    # avoid indexes
+                    kept_v_idx_north = int(kept_v_idx_north.to_string(index=False))
+                    kept_v_idx_south = int(kept_v_idx_south.to_string(index=False))
+
+
                     # number of pulses remaining to be checked
                     remaining = len(df_best_match['index_south']) - instances
-
-                    #print("number of pulses remaining to be checked")
-                    #print(remaining)
+                    new_ind = ind + remaining
                     
-                    print("how many instances:", how_many)
-                    print("index_south=", south_v_index)
-                    print('index_north', df_best_match.iloc[ind]["index_north"])
-
-                
-            if (event == 19):
-                stop
+                    df_1 = df_v.loc[kept_v_idx_north:kept_v_idx_north, :"timeMuS_north"]
+                    df_2 = df_v.loc[kept_v_idx_south:kept_v_idx_south, "number_south":]
+                    df_match = pd.concat([df_1, df_2], axis=1)
                     
+                    if (flag_1 == True):                                                         
+                        # export data to csv
+                        with open(directory + "matched_DD_Vectors_" + proc + ".csv","w") as f:
+                            # index = False otherwise first column is a comma
+                            df_match.to_csv(f, index=False, header=False)
+                            flag = False
+               
+                    elif (flag == False):
+                        # export data to csv
+                        with open(directory + "matched_DD_Vectors_" + proc + ".csv","a") as f:
+                            # index = False otherwise first column is a comma
+                            df_match.to_csv(f, index=False, header=None)
 
+                elif(instances == 1):
+
+                    kept_min_delta = np.min(df_instances["min_delta_i"])
+                    kept_min_delta_idx = df_instances["min_delta_i"].idxmin()
+
+                    kept_v_idx_north = df_instances.query("min_delta_i == '%s'" %str(kept_min_delta))["index_north"]
+                    kept_v_idx_south = df_instances.query("min_delta_i == '%s'" %str(kept_min_delta))["index_south"]
+
+                    # avoid indexes
+                    kept_v_idx_north = int(kept_v_idx_north.to_string(index=False))
+                    kept_v_idx_south = int(kept_v_idx_south.to_string(index=False))
+
+
+                    df_1 = df_v.loc[kept_v_idx_north:kept_v_idx_north, :"timeMuS_north"]
+                    df_2 = df_v.loc[kept_v_idx_south:kept_v_idx_south, "number_south":]
+                    df_match = pd.concat([df_1, df_2], axis=1)
+                    
+                    if (flag_1 == True):                                                         
+                        # export data to csv
+                        with open(directory + "matched_DD_Vectors_" + proc + ".csv","w") as f:
+                            # index = False otherwise first column is a comma
+                            df_match.to_csv(f, index=False, header=False)
+                            flag = False
+
+                    elif (flag == False):
+                        # export data to csv
+                        with open(directory + "matched_DD_Vectors_" + proc + ".csv","a") as f:
+                            # index = False otherwise first column is a comma
+                            df_match.to_csv(f, index=False, header=None)
 
                 #if (min_val < plafon):
                          
                        # if (len(v_indexes_south > 1) and j > 0):
                        #     delta_start_prev = df_delta_start.iloc[i,j] - df_delta_start_north_south.iloc[i,j-1]
 
-                       #     # if delta_start_prev < 0 means delta_startbin of j-1-th pulse is smaller 
-                       #     # than delta_startbin of j-th pulse
-                       #     if(delta_start_prev < 0 and temp == 0):
-                       #         index_j = j
-                       #         temp = delta_start_prev
-                       #         print("mpika sto if")
-                       #     
-                       #     elif(temp != 0 and delta_start_prev < temp):
-                       #         df_1 = df_v.loc[ind_north:ind_north, :"timeMuS_north"]
-                       #         df_2 = df_v.loc[ind_south:ind_south, "number_south":]
-                       #         df_match = pd.concat([df_1, df_2], axis=1)
-                       #     
-                       #     elif(temp != 0 and delta_start_prev > temp):
-                       #         indexes_south = lst_vals[index_j]
-                       #         df_1 = df_v.loc[ind_north:ind_north, :"timeMuS_north"]
-                       #         df_2 = df_v.loc[indexes_south:indexes_south, "number_south":]
-                       #         df_match = pd.concat([df_1, df_2], axis=1)
+        elif (pulses_south < pulses_north):
+
+            """ use f-string to reference local variable
+            option to reference column labels
+            """
+            col_n = "event"
+            # select pulses of same event
+            df_event = df_v.query(f"{col_n} == {event}")
             
-                       #         if (flag == True):
-                       #             # export data to csv
-                       #             with open(directory + "matched_DD_Vectors_" + proc + ".csv","w") as f:
-                       #                 # index = False otherwise first column is a comma
-                       #                 df_match.to_csv(f, index=False, header=False)
-                       #             
-                       #             # turn to false to prevent writing on the same file 
-                       #             # with headers twice
-                       #             flag = False
+            # select vector indexes of north pulses
+            # note: v_indexes_north == pulses_north
+            v_indexes_south = df_v.query(f"{col_n} == {event}").index[0:pulses_south]
+            
+            # select vector indexes of north pulses
+            # note: v_indexes_north == pulses_north
+            v_indexes_north = df_v.query(f"{col_n} == {event}").index[0:pulses_north]
+            
+            # correct for the time offset between north/south channel
+            # units in microseconds
+            lst_time_startbin_north = [df_event["startbin_north"]\
+                                     + df_event["timeS_north"].mul(10e6)\
+                                     + df_event["timeMuS_north"]]
+            
+            # units in microseconds
+            lst_time_startbin_south = [df_event["startbin_south"]\
+                                     + df_event["timeS_south"].mul(10e6)\
+                                     + df_event["timeMuS_south"]]
+            
+            # add as new columns in DataFrame
+            df_event["time_startbin_north"] = lst_time_startbin_north[0]
+            df_event["time_startbin_south"] = lst_time_startbin_south[0]
+            
+            # size of list should be equal to npulses_north*npulses_south
+            # and correspond to all possible delta-startbin
+            lst_delta = [[None]*int(pulses_north)]*int(pulses_south)
+            
+            # number of possible pulse comparisons
+            n_comparisons = v_indexes_north
+            
+            # create DataFrame to store delta-startbin
+            df_delta_start = pd.DataFrame(data=lst_delta, columns=n_comparisons)
 
-                       #         elif (flag == False):
-                       #             # export data to csv
-                       #             with open(directory + "matched_DD_Vectors_" + proc + ".csv","a") as f:
-                       #                 # index = False otherwise first column is a comma
-                       #                 df_match.to_csv(f, index=False, header=None)
+            # 
+            lst_best_match = [None]*int(pulses_south)
+            lst_south_match_indx = [None]*int(pulses_south)
+            lst_north_match_indx = [None]*int(pulses_south)
 
-                       # elif(len(v_indexes_south) == 1):
-                       #     if (flag == True):
-                       #         # export data to csv
-                       #         with open(directory + "matched_DD_Vectors_" + proc + ".csv","w") as f:
-                       #             # index = False otherwise first column is a comma
-                       #             df_match.to_csv(f, index=False, header=False)
-                       #         
-                       #         # turn to false to prevent writing on the same file 
-                       #         # with headers twice
-                       #         flag = False
+            # loop to calculate (delta-startbin)ij and store it in the DataFrame
+            for i, ind_south in enumerate(v_indexes_south):
 
-                       #     elif (flag == False):
-                       #         # export data to csv
-                       #         with open(directory + "matched_DD_Vectors_" + proc + ".csv","a") as f:
-                       #             # index = False otherwise first column is a comma
-                       #             df_match.to_csv(f, index=False, header=None)
+                # vector_indexes = npulses_north = number of
+                # pulses in the north
+                for j, ind_north in enumerate(v_indexes_north):
 
-#            for indx, dij in enumerate(df_delta_start):
-#                print(df_match[["event", "startbin_north", "startbin_south"]])
-#                stop
+                    # assign delta-startbin to the element in position i,col in the DataFrame
+                    # north precedes
+                    # units in microseconds
+                    df_delta_start.iloc[i, j] = df_event["time_startbin_north"].iloc[i]\
+                                              - df_event["time_startbin_south"].iloc[j]
+                    
+                # get the minimum delta_startbin between i-th north pulse 
+                # and all south pulses
+                lst_best_match[i] = np.min(abs(df_delta_start.iloc[i]))
+                
+                # transform cell value to numeric ones in order to 
+                # access the index with the .idxmin() method
+                numeric_cells = pd.to_numeric(abs(df_delta_start.iloc[i]))
+               
+                # store index of minimum delta_startbin.
+                # the index of the minimum delta_startbin
+                # corresponds to the pulse number in the south
+                # associated with the minimum
+                # note: len(lst_north_match_indx) = len(lst_best_match) 
+                lst_north_match_indx[i] = numeric_cells.idxmin()
+
+                # store index of the north matched pulse corresponding
+                # to the df_v
+                lst_south_match_indx[i] = ind_south
+                
+            dict_best_match = {"min_delta_i": lst_best_match, 
+                               "index_south": lst_south_match_indx,
+                               "index_north": lst_north_match_indx}
+
+            df_best_match = pd.DataFrame(data=dict_best_match)
+
+            # check if same pulse is matched multiple times with other
+            # pulses
+            n_indexes = (len(df_best_match['index_north']))
+            
+            # flag to jump iterations from ind to new_ind
+            flag_2 = False
+           
+            # note: len(df_best_match['index_south']) = npulses_north
+            for ind, north_v_index in enumerate(df_best_match['index_north']):
+
+                df_instances = df_best_match.query("index_north == '%s' " %str(north_v_index))
+                instances = len(df_instances)
+               
+                # flag to jump iterations from ind to new_ind
+                if(flag_2 == True):
+                    if(ind in (ind, new_ind)):
+                        continue
+
+                if(instances > 1):
+                    flag_2 = True
+                    
+                    how_many = instances
+
+                    kept_min_delta = np.min(df_instances["min_delta_i"])
+                    kept_min_delta_idx = df_instances["min_delta_i"].idxmin()
+
+                    # number of pulses remaining to be checked
+                    remaining = len(df_best_match['index_north']) - instances
+                    new_ind = ind + remaining
+                    
+                    df_1 = df_v.loc[kept_v_idx_north:kept_v_idx_north, :"timeMuS_north"]
+                    df_2 = df_v.loc[kept_v_idx_south:kept_v_idx_south, "number_south":]
+                    df_match = pd.concat([df_1, df_2], axis=1)
+                    
+                    if (flag_1 == True):                                                         
+                        # export data to csv
+                        with open(directory + "matched_DD_Vectors_" + proc + ".csv","w") as f:
+                            # index = False otherwise first column is a comma
+                            df_match.to_csv(f, index=False, header=False)
+                            flag = False
+               
+                    elif (flag == False):
+                        # export data to csv
+                        with open(directory + "matched_DD_Vectors_" + proc + ".csv","a") as f:
+                            # index = False otherwise first column is a comma
+                            df_match.to_csv(f, index=False, header=None)
+
+                elif(instances == 1):
+
+                    kept_min_delta = np.min(df_instances["min_delta_i"])
+                    kept_min_delta_idx = df_instances["min_delta_i"].idxmin()
+
+                    kept_v_idx_north = df_instances.query("min_delta_i == '%s'" %str(kept_min_delta))["index_north"]
+                    kept_v_idx_south = df_instances.query("min_delta_i == '%s'" %str(kept_min_delta))["index_south"]
+
+                    # avoid indexes
+                    kept_v_idx_north = int(kept_v_idx_north.to_string(index=False))
+                    kept_v_idx_south = int(kept_v_idx_south.to_string(index=False))
 
 
+                    df_1 = df_v.loc[kept_v_idx_north:kept_v_idx_north, :"timeMuS_north"]
+                    df_2 = df_v.loc[kept_v_idx_south:kept_v_idx_south, "number_south":]
+                    df_match = pd.concat([df_1, df_2], axis=1)
+                    
+                    if (flag_1 == True):                                                         
+                        # export data to csv
+                        with open(directory + "matched_DD_Vectors_" + proc + ".csv","w") as f:
+                            # index = False otherwise first column is a comma
+                            df_match.to_csv(f, index=False, header=False)
+                            flag = False
 
+                    elif (flag == False):
+                        # export data to csv
+                        with open(directory + "matched_DD_Vectors_" + proc + ".csv","a") as f:
+                            # index = False otherwise first column is a comma
+                            df_match.to_csv(f, index=False, header=None)
 
-    print("Finished matching")
+print("Finished matching")
