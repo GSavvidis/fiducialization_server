@@ -24,7 +24,7 @@ pd.options.mode.chained_assignment = None  # default='warn'
 
 processing = np.array(["q41", "q42", "q43", "q44", "q45", "q46", "q47", "q48", "q49", "q50", 
 					"q51", "q52", "q53", "q54", "q55", "q56", "q57", "q58"])
-process = ["q16"]
+process = ["q29"]
 lst_vecs = [None]*len(process)
 lst_procs = [None]*len(process)
 lst_npulses = [None]*len(process)
@@ -44,6 +44,9 @@ start = time.time()
 """loop over all the processed runs and perform the matching of pulses"""
 for indx, proc in enumerate(process):
 
+    # matching of pulses for the following processing
+    print(f"Matching pulses for {proc}")
+
     # List of csv of DD_Vectors to read
     lst_vecs[indx] = "/home/gsavvidis/notebooks/DD_Vectors_" + proc + ".csv"
 		
@@ -61,12 +64,10 @@ for indx, proc in enumerate(process):
     dict_vecs = csv_vecs.load_csv()
     dict_npulses = csv_npulses.load_csv()
     
-
     # Extract multiple dataframes from dictionary
     # df_v = pd.concat(dict_vecs.plafons(), keys=dict_vecs.keys())
     df_v = pd.DataFrame.from_dict(dict_vecs[proc])
     df_npulses = pd.DataFrame.from_dict(dict_npulses[proc])
-
 
     # Select specific procs from the list of procs
     # df_v = df_v[lst_procs[0]:lst_procs[-1]]	
@@ -148,10 +149,12 @@ for indx, proc in enumerate(process):
             # create DataFrame to store delta-startbin
             df_delta_start = pd.DataFrame(data=lst_delta, columns=n_comparisons)
 
-            # 
+            # list to store delta startbins 
             lst_min_delta = [None]*int(pulses_north)
-            lst_south_match_indx = [None]*int(pulses_north)
-            lst_north_match_indx = [None]*int(pulses_north)
+            
+            # lists to store 
+            lst_min_delta_south_idx = [None]*int(pulses_north)
+            lst_min_delta_north_idx = [None]*int(pulses_north)
 
             # loop to calculate (delta-startbin)ij and store it in the DataFrame
             for i, ind_north in enumerate(v_indexes_north):
@@ -177,16 +180,16 @@ for indx, proc in enumerate(process):
                 # the index of the minimum delta_startbin
                 # corresponds to the pulse number in the south
                 # associated with the minimum
-                # note: len(lst_south_match_indx) = len(lst_min_delta) 
-                lst_south_match_indx[i] = numeric_cells.idxmin()
+                # note: len(lst_min_delta_south_idx) = len(lst_min_delta) 
+                lst_min_delta_south_idx[i] = numeric_cells.idxmin()
 
                 # store index of the north matched pulse corresponding
                 # to the df_v
-                lst_north_match_indx[i] = ind_north
+                lst_min_delta_north_idx[i] = ind_north
                 
             dict_best_match = {"min_delta_i": lst_min_delta, 
-                               "index_south": lst_south_match_indx,
-                               "index_north": lst_north_match_indx}
+                               "index_south": lst_min_delta_south_idx,
+                               "index_north": lst_min_delta_north_idx}
 
             df_best_match = pd.DataFrame(data=dict_best_match)
 
@@ -199,16 +202,13 @@ for indx, proc in enumerate(process):
            
             # note: len(df_best_match['index_south']) = npulses_north
             for ind, south_v_index in enumerate(df_best_match['index_south']):
-                print("event=", event)
-                print("kanoniko ind: ", ind)
-                print("")
+                
                 df_instances = df_best_match.query("index_south == '%s' " %str(south_v_index))
                 instances = len(df_instances)
                
                 # flag to jump iterations from ind to new_ind
                 if(flag_2 == True):
                     if(ind in (ind, new_ind)):
-                        print("Jumped ind: ", ind)
                         continue
 
                 if(instances > 1):
@@ -284,6 +284,11 @@ for indx, proc in enumerate(process):
                        # if (len(v_indexes_south > 1) and j > 0):
                        #     delta_start_prev = df_delta_start.iloc[i,j] - df_delta_start_north_south.iloc[i,j-1]
 
+        mid = time.time()
+        elapsed = mid - start
+        if(elapsed % interval == 0):
+            print(f"Elapsed time (seconds): {elapsed}")
+        
         elif (pulses_south < pulses_north):
 
             """ use f-string to reference local variable
@@ -330,8 +335,8 @@ for indx, proc in enumerate(process):
             lst_min_delta = [None]*int(pulses_south)
 
             #
-            lst_south_match_indx = [None]*int(pulses_south)
-            lst_north_match_indx = [None]*int(pulses_south)
+            lst_min_delta_south_idx = [None]*int(pulses_south)
+            lst_min_delta_north_idx = [None]*int(pulses_south)
 
             # loop to calculate (delta-startbin)ij and store it in the DataFrame
             for i, ind_south in enumerate(v_indexes_south):
@@ -358,16 +363,16 @@ for indx, proc in enumerate(process):
                 # the index of the minimum delta_startbin
                 # corresponds to the pulse number in the south
                 # associated with the minimum
-                # note: len(lst_north_match_indx) = len(lst_min_delta) 
-                lst_north_match_indx[i] = numeric_cells.idxmin()
+                # note: len(lst_min_delta_north_idx) = len(lst_min_delta) 
+                lst_min_delta_north_idx[i] = numeric_cells.idxmin()
 
                 # store index of the north matched pulse corresponding
                 # to the df_v
-                lst_south_match_indx[i] = ind_south
+                lst_min_delta_south_idx[i] = ind_south
                 
             dict_best_match = {"min_delta_i": lst_min_delta, 
-                               "index_south": lst_south_match_indx,
-                               "index_north": lst_north_match_indx}
+                               "index_south": lst_min_delta_south_idx,
+                               "index_north": lst_min_delta_north_idx}
 
             df_best_match = pd.DataFrame(data=dict_best_match)
 
@@ -462,5 +467,4 @@ for indx, proc in enumerate(process):
 print("Finished matching")
 end = time.time()
 print("Total run time: ", end-start)
-
 
