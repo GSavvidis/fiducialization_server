@@ -285,8 +285,6 @@ for indx, proc in enumerate(process):
                        #     delta_start_prev = df_delta_start.iloc[i,j] - df_delta_start_north_south.iloc[i,j-1]
 
         elif (pulses_south < pulses_north):
-            if(event == 5):
-                 stop
 
             """ use f-string to reference local variable
             option to reference column labels
@@ -380,7 +378,7 @@ for indx, proc in enumerate(process):
             flag_2 = False
            
             # check if same pulse is matched multiple times with other pulses
-            # note: len(df_best_match['index_south']) = npulses_north
+            # note: len(df_best_match['index_south']) = number of delta startbins =  npulses_north 
             for ind, north_v_index in enumerate(df_best_match['index_north']):
 
                 df_instances = df_best_match.query("index_north == '%s' " %str(north_v_index))
@@ -399,13 +397,20 @@ for indx, proc in enumerate(process):
                     kept_min_delta = np.min(df_instances["min_delta_i"])
                     kept_min_delta_idx = df_instances["min_delta_i"].idxmin()
 
-                    # number of pulses remaining to be checked
-                    remaining = len(df_best_match['index_north']) - instances
-                    new_ind = ind + remaining
+                    kept_v_idx_north = df_instances.query("min_delta_i == '%s'" %str(kept_min_delta))["index_north"]
+                    kept_v_idx_south = df_instances.query("min_delta_i == '%s'" %str(kept_min_delta))["index_south"]
+
+                    # keep only the values of the dataframe without the indexes
+                    kept_v_idx_north = int(kept_v_idx_north.to_string(index=False))
+                    kept_v_idx_south = int(kept_v_idx_south.to_string(index=False))
                     
                     df_1 = df_v.loc[kept_v_idx_north:kept_v_idx_north, :"timeMuS_north"]
                     df_2 = df_v.loc[kept_v_idx_south:kept_v_idx_south, "number_south":]
                     df_match = pd.concat([df_1, df_2], axis=1)
+                    
+                    # number of pulses remaining to be checked
+                    remaining = len(df_best_match['index_north']) - instances
+                    new_ind = ind + remaining
                     
                     if (flag_1 == True):                                                         
                         # export data to csv
@@ -431,7 +436,6 @@ for indx, proc in enumerate(process):
                     # avoid indexes
                     kept_v_idx_north = int(kept_v_idx_north.to_string(index=False))
                     kept_v_idx_south = int(kept_v_idx_south.to_string(index=False))
-
 
                     df_1 = df_v.loc[kept_v_idx_north:kept_v_idx_north, :"timeMuS_north"]
                     df_2 = df_v.loc[kept_v_idx_south:kept_v_idx_south, "number_south":]
