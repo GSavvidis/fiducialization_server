@@ -7,7 +7,7 @@ import os.path
 import pandas as pd
 import matplotlib.pyplot as plt
 import numpy as np
-import timeit
+import time
 
 
 'my functions'
@@ -24,7 +24,7 @@ pd.options.mode.chained_assignment = None  # default='warn'
 
 processing = np.array(["q41", "q42", "q43", "q44", "q45", "q46", "q47", "q48", "q49", "q50", 
 					"q51", "q52", "q53", "q54", "q55", "q56", "q57", "q58"])
-process = ["q24"]
+process = ["q16"]
 lst_vecs = [None]*len(process)
 lst_procs = [None]*len(process)
 lst_npulses = [None]*len(process)
@@ -32,10 +32,14 @@ sampling_period = 1./1.041670 # 1/MHz
 nchannels = 2
 plafon = 100
 
+# seconds
+interval = 360
+
 # directory to save matched pulses
 directory = '/home/gsavvidis/notebooks/'
 
-
+# starting clock
+start = time.time()
 
 """loop over all the processed runs and perform the matching of pulses"""
 for indx, proc in enumerate(process):
@@ -145,7 +149,7 @@ for indx, proc in enumerate(process):
             df_delta_start = pd.DataFrame(data=lst_delta, columns=n_comparisons)
 
             # 
-            lst_best_match = [None]*int(pulses_north)
+            lst_min_delta = [None]*int(pulses_north)
             lst_south_match_indx = [None]*int(pulses_north)
             lst_north_match_indx = [None]*int(pulses_north)
 
@@ -157,14 +161,13 @@ for indx, proc in enumerate(process):
                 for j, ind_south in enumerate(v_indexes_south):
 
                     # assign delta-startbin to the element in position i,col in the DataFrame
-                    # north precedes
-                    # units in microseconds
+                    # note: north precedes units in microseconds
                     df_delta_start.iloc[i, j] = df_event["time_startbin_north"].iloc[i]\
                                               - df_event["time_startbin_south"].iloc[j]
                     
                 # get the minimum delta_startbin between i-th north pulse 
                 # and all south pulses
-                lst_best_match[i] = np.min(abs(df_delta_start.iloc[i]))
+                lst_min_delta[i] = np.min(abs(df_delta_start.iloc[i]))
                 
                 # transform cell value to numeric ones in order to 
                 # access the index with the .idxmin() method
@@ -174,14 +177,14 @@ for indx, proc in enumerate(process):
                 # the index of the minimum delta_startbin
                 # corresponds to the pulse number in the south
                 # associated with the minimum
-                # note: len(lst_south_match_indx) = len(lst_best_match) 
+                # note: len(lst_south_match_indx) = len(lst_min_delta) 
                 lst_south_match_indx[i] = numeric_cells.idxmin()
 
                 # store index of the north matched pulse corresponding
                 # to the df_v
                 lst_north_match_indx[i] = ind_north
                 
-            dict_best_match = {"min_delta_i": lst_best_match, 
+            dict_best_match = {"min_delta_i": lst_min_delta, 
                                "index_south": lst_south_match_indx,
                                "index_north": lst_north_match_indx}
 
@@ -196,13 +199,16 @@ for indx, proc in enumerate(process):
            
             # note: len(df_best_match['index_south']) = npulses_north
             for ind, south_v_index in enumerate(df_best_match['index_south']):
-
+                print("event=", event)
+                print("kanoniko ind: ", ind)
+                print("")
                 df_instances = df_best_match.query("index_south == '%s' " %str(south_v_index))
                 instances = len(df_instances)
                
                 # flag to jump iterations from ind to new_ind
                 if(flag_2 == True):
                     if(ind in (ind, new_ind)):
+                        print("Jumped ind: ", ind)
                         continue
 
                 if(instances > 1):
@@ -216,10 +222,9 @@ for indx, proc in enumerate(process):
                     kept_v_idx_north = df_instances.query("min_delta_i == '%s'" %str(kept_min_delta))["index_north"]
                     kept_v_idx_south = df_instances.query("min_delta_i == '%s'" %str(kept_min_delta))["index_south"]
 
-                    # avoid indexes
+                    # keep only the values of the dataframe without the indexes
                     kept_v_idx_north = int(kept_v_idx_north.to_string(index=False))
                     kept_v_idx_south = int(kept_v_idx_south.to_string(index=False))
-
 
                     # number of pulses remaining to be checked
                     remaining = len(df_best_match['index_south']) - instances
@@ -229,14 +234,16 @@ for indx, proc in enumerate(process):
                     df_2 = df_v.loc[kept_v_idx_south:kept_v_idx_south, "number_south":]
                     df_match = pd.concat([df_1, df_2], axis=1)
                     
+                    # first if is to create and write in the csv file if it has not been already created
                     if (flag_1 == True):                                                         
                         # export data to csv
                         with open(directory + "matched_DD_Vectors_" + proc + ".csv","w") as f:
                             # index = False otherwise first column is a comma
                             df_match.to_csv(f, index=False, header=False)
-                            flag = False
-               
-                    elif (flag == False):
+                            flag_1 = False
+                    
+                    # the elif is to write in the csv file if it has already been created
+                    elif (flag_1 == False):
                         # export data to csv
                         with open(directory + "matched_DD_Vectors_" + proc + ".csv","a") as f:
                             # index = False otherwise first column is a comma
@@ -264,20 +271,22 @@ for indx, proc in enumerate(process):
                         with open(directory + "matched_DD_Vectors_" + proc + ".csv","w") as f:
                             # index = False otherwise first column is a comma
                             df_match.to_csv(f, index=False, header=False)
-                            flag = False
+                            flag_1 = False
 
-                    elif (flag == False):
+                    elif (flag_1 == False):
                         # export data to csv
                         with open(directory + "matched_DD_Vectors_" + proc + ".csv","a") as f:
                             # index = False otherwise first column is a comma
                             df_match.to_csv(f, index=False, header=None)
-
+                
                 #if (min_val < plafon):
                          
                        # if (len(v_indexes_south > 1) and j > 0):
                        #     delta_start_prev = df_delta_start.iloc[i,j] - df_delta_start_north_south.iloc[i,j-1]
 
         elif (pulses_south < pulses_north):
+            if(event == 5):
+                 stop
 
             """ use f-string to reference local variable
             option to reference column labels
@@ -319,8 +328,10 @@ for indx, proc in enumerate(process):
             # create DataFrame to store delta-startbin
             df_delta_start = pd.DataFrame(data=lst_delta, columns=n_comparisons)
 
-            # 
-            lst_best_match = [None]*int(pulses_south)
+            # list with size equal to the number of 
+            lst_min_delta = [None]*int(pulses_south)
+
+            #
             lst_south_match_indx = [None]*int(pulses_south)
             lst_north_match_indx = [None]*int(pulses_south)
 
@@ -339,7 +350,7 @@ for indx, proc in enumerate(process):
                     
                 # get the minimum delta_startbin between i-th north pulse 
                 # and all south pulses
-                lst_best_match[i] = np.min(abs(df_delta_start.iloc[i]))
+                lst_min_delta[i] = np.min(abs(df_delta_start.iloc[i]))
                 
                 # transform cell value to numeric ones in order to 
                 # access the index with the .idxmin() method
@@ -349,26 +360,26 @@ for indx, proc in enumerate(process):
                 # the index of the minimum delta_startbin
                 # corresponds to the pulse number in the south
                 # associated with the minimum
-                # note: len(lst_north_match_indx) = len(lst_best_match) 
+                # note: len(lst_north_match_indx) = len(lst_min_delta) 
                 lst_north_match_indx[i] = numeric_cells.idxmin()
 
                 # store index of the north matched pulse corresponding
                 # to the df_v
                 lst_south_match_indx[i] = ind_south
                 
-            dict_best_match = {"min_delta_i": lst_best_match, 
+            dict_best_match = {"min_delta_i": lst_min_delta, 
                                "index_south": lst_south_match_indx,
                                "index_north": lst_north_match_indx}
 
             df_best_match = pd.DataFrame(data=dict_best_match)
 
-            # check if same pulse is matched multiple times with other
-            # pulses
+            # length of stored indexes in the dataframe = number of delta startbin indexes = number of delta startbins
             n_indexes = (len(df_best_match['index_north']))
             
             # flag to jump iterations from ind to new_ind
             flag_2 = False
            
+            # check if same pulse is matched multiple times with other pulses
             # note: len(df_best_match['index_south']) = npulses_north
             for ind, north_v_index in enumerate(df_best_match['index_north']):
 
@@ -401,9 +412,9 @@ for indx, proc in enumerate(process):
                         with open(directory + "matched_DD_Vectors_" + proc + ".csv","w") as f:
                             # index = False otherwise first column is a comma
                             df_match.to_csv(f, index=False, header=False)
-                            flag = False
+                            flag_1 = False
                
-                    elif (flag == False):
+                    elif (flag_1 == False):
                         # export data to csv
                         with open(directory + "matched_DD_Vectors_" + proc + ".csv","a") as f:
                             # index = False otherwise first column is a comma
@@ -431,12 +442,21 @@ for indx, proc in enumerate(process):
                         with open(directory + "matched_DD_Vectors_" + proc + ".csv","w") as f:
                             # index = False otherwise first column is a comma
                             df_match.to_csv(f, index=False, header=False)
-                            flag = False
+                            flag_1 = False
 
-                    elif (flag == False):
+                    elif (flag_1 == False):
                         # export data to csv
                         with open(directory + "matched_DD_Vectors_" + proc + ".csv","a") as f:
                             # index = False otherwise first column is a comma
                             df_match.to_csv(f, index=False, header=None)
 
+        mid = time.time()
+        elapsed = mid - start
+        if(elapsed % interval == 0):
+            print(f"Elapsed time (seconds): {elapsed}")
+
 print("Finished matching")
+end = time.time()
+print("Total run time: ", end-start)
+
+
