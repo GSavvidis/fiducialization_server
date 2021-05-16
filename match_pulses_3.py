@@ -16,6 +16,7 @@ from pretty_print import pretty_print
 from functions import read_npulses
 from functions import drop_laser_events
 from functions import drop_events_by_index
+from functions import drop_events_mi
 from functions import drop_events
 from functions import select_events_by_query
 from functions import get_min_delta_startbins
@@ -33,17 +34,17 @@ pd.options.mode.chained_assignment = None  # default='warn'
 
 processing = np.array(["q41", "q42", "q43", "q44", "q45", "q46", "q47", "q48", "q49", "q50", 
 					"q51", "q52", "q53", "q54", "q55", "q56", "q57", "q58"])
-process = ["q36"]
+process = ["q29"]
 lst_vecs = [None]*len(process)
 lst_procs = [None]*len(process)
 lst_npulses = [None]*len(process)
 sampling_period = 1./1.041670 # 1/MHz
 nchannels = 2
 plafon = 100
-nrows = 100
+nrows = None
 
 flag_stacked = True
-flag_drop_ontrigger = False
+flag_drop_ontrigger = True
 
 # seconds
 interval = 360
@@ -105,28 +106,25 @@ for indx, proc in enumerate(process):
 
     """ Filter out unphysical startbin
     """
-    print("Selecting events with startbin > 0")
-    cond = "(subentry == 0 | subentry == 1) & DD_VectorStartBin > 0"
-    df_vecs = select_events_by_query(df_vecs, cond)
+    #print("Selecting events with startbin > 0")
+    #cond = "(subentry == 0 | subentry == 1) & DD_VectorStartBin > 0"
+    #df_vecs = select_events_by_query(df_vecs, cond)
     #pretty_print(df_vecs)
     #print("")
 
     """ Drop ontrigger events
     """
     if flag_drop_ontrigger == True:
-        print("Dropping ontrigger events")
-        df_vecs = df_vecs.unstack(level="subentry")
-        cond = "(df.DD_VectorStartBin[0] > 3500 & df.DD_VectorStartBin[0] < 4500)\
-              | (df.DD_VectorStartBin[1] > 3500 & df.DD_VectorStartBin[1] < 4500)"
-        df_vecs = drop_events(df_vecs, cond, unstacked=True)
-        print("Offtrigger events successfully selected")
-        print(df_vecs)
-        print("")
-        print("Re-stacking dataframe")
-        df_vecs = df_vecs.stack(level="subentry")
 
-    #pretty_print(df_vecs)
-    #print("")
+        cond_0 = "(DD_VectorStartBin > 3500 & DD_VectorStartBin < 4500)" 
+        cond_1 = "(DD_VectorStartBin > 3500 & DD_VectorStartBin < 4500)" 
+
+        print("Dropping ontrigger events")
+        df_vecs = drop_events_mi(df_vecs, cond_0, cond_1, unstacked=False)
+        print("Offtrigger events successfully selected")
+
+    pretty_print(df_vecs)
+    print("")
     
     flag_1 = True
     iterations = 1000
