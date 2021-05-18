@@ -2,7 +2,8 @@ import pandas as pd
 import numpy as np
 
 
-
+""" Function to read csv file NPulses
+"""
 def read_npulses(directory, proc):
     
     lst_names = ["north", "south", "laser"]
@@ -10,6 +11,12 @@ def read_npulses(directory, proc):
 
     return df_npulses
 
+
+""" Function to drop duplicate values from
+    a list
+"""
+def drop_duplicates(x):
+    return list(dict.fromkeys(x))
 
 
 
@@ -62,6 +69,9 @@ def drop_events(df, cond, unstacked):
     return df
 
 
+""" Function that returns a list with the
+    common elements between two input lists
+"""
 def common_elements(a, b):
     a.sort_values()
     b.sort_values()
@@ -97,12 +107,31 @@ def drop_events_mi(df, cond_0, cond_1, unstacked=False):
         
         common = common_elements(events_0, events_1)
         
-        df = df.drop(labels=common, axis=0)
+        df = df.drop(labels=common, axis=0, level="entry")
 
     return df
 
 
 
+def drop_events_2(df, ch_i, cond_i, unstacked=False):
+
+    if unstacked == True:
+        print("Ekanes malakia")
+
+    elif unstacked == False:
+
+        df_i = df.xs(ch_i, level="subentry", drop_level=False)
+        
+        events_i = df_i.query(f"{cond_i}").index.get_level_values(level="entry")
+        
+        df = df.drop(labels=events_i, axis=0, level="entry")
+
+    return df
+
+
+""" Function that estimates the minimum delta-startbin between two
+    channels from the dataframe of a single event
+"""
 def get_min_delta_startbins(df_event, npulses_south, npulses_north):
 
     # This condiction must always be satisfaided:npulses_i < npulses_j
@@ -164,8 +193,9 @@ def get_min_delta_startbins(df_event, npulses_south, npulses_north):
     return lst_min_delta, lst_min_pulse_south, lst_min_pulse_north
 
 
-
-
+""" Function that matches pulses between two
+    channels from the dataframe of a single event
+"""
 def do_the_matching(ind, df_event, df_instances, instances, df_first_match):
 
     """ In the dataframe df_instances find the minimum delta
@@ -233,11 +263,10 @@ def select_by_index_level(df, ch_i, level):
     
     return df
 
-def select_laser(df):
-    # select laser channel
-    df_laser = df[df.index.isin([2], level="subentry")]
 
-
+""" Function that counts the number of pulses of a
+    given event for a specific channel in the main dataframe
+"""
 def count_pulses(df, event, channel):
     df_pulses = df.query(f"entry == {event} & subentry == {channel}")
     lst_pulses = df_pulses.index.get_level_values("DD_NPulses")

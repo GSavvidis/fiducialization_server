@@ -1,4 +1,5 @@
 
+
 import sys
 #sys.path.append('/Users/georgesavvidis/Documents/PhD/data_analysis/lsm/functions/')
 #sys.path.append('/Users/georgesavvidis/Documents/PhD/data_analysis/lsm/classes/')
@@ -35,14 +36,14 @@ pd.options.mode.chained_assignment = None  # default='warn'
 
 processing = np.array(["q41", "q42", "q43", "q44", "q45", "q46", "q47", "q48", "q49", "q50", 
 					"q51", "q52", "q53", "q54", "q55", "q56", "q57", "q58"])
-process = ["q36"]
+process = ["q29"]
 lst_vecs = [None]*len(process)
 lst_procs = [None]*len(process)
 lst_npulses = [None]*len(process)
 sampling_period = 1./1.041670 # 1/MHz
 nchannels = 2
 plafon = 100
-nrows = 10000
+nrows = None
 
 flag_stacked = True
 flag_drop_ontrigger = True
@@ -105,28 +106,65 @@ for indx, proc in enumerate(process):
     df_vecs["DD_VectorDeltaBinPrev"] = df_vecs["DD_VectorDeltaBinPrev"].mul(sampling_period)
     df_vecs["DD_VectorDeltaBinNext"] = df_vecs["DD_VectorDeltaBinNext"].mul(sampling_period)
 
-    """ Filter out unphysical startbin
+    window_size = 8000. # mus
+    window_start = 0. # mus
+    ontrigger_min = 3500. # mus
+    ontrigger_max = 4500. # mus
+    frac_min = ontrigger_min/window_size
+    frac_max = ontrigger_max/window_size
+
+    """ Take into account total time
     """
-    #print("Selecting events with startbin > 0")
-    #cond = "(subentry == 0 | subentry == 1) & DD_VectorStartBin > 0"
-    #df_vecs = select_events_by_query(df_vecs, cond)
-    #pretty_print(df_vecs)
-    #print("")
+    col1 = df_vecs.query("subentry == 0 | subentry == 1")["DD_VectorStartBin"] 
+    col2 = df_vecs.query("subentry == 0 | subentry == 1")["TimeS"].mul(10e-6) 
+    col3 = df_vecs.query("subentry == 0 | subentry == 1")["TimeMuS"] 
+    new_col = col1 + col2 + col3
+    df_vecs["DD_VectorStartBinTime"] = new_col
+    print(df_vecs)
+
+    """ Create new column = start of window
+    """
+    arr_window = np.array([None]*len(df_vecs.index))
+    df_vecs["WindowStart"] = arr_window
+    df_vecs["WindowStart"] = window_start
+
+    """ Take into account total time
+    """
+    col1 = df_vecs.query("subentry == 0 | subentry == 1")["WindowStart"] 
+    col2 = df_vecs.query("subentry == 0 | subentry == 1")["TimeS"].mul(10e-6) 
+    col3 = df_vecs.query("subentry == 0 | subentry == 1")["TimeMuS"] 
+    new_col = col1 + col2 + col3
+    df_vecs["WindowStart"] = new_col
+
+    df_vecs["CorrectedStartBin"] = df_vecs["DD_VectorStartBinTime"].subtract(df_vecs["WindowStart"])
+    
+    print("df_vecs")
+    print(df_vecs)
 
     """ Drop ontrigger events
     """
     if flag_drop_ontrigger == True:
+        print("Flag to drop ontrigger events activated")
+
+        ontrigger_start = 3500
+        ontrigger_stop = 4500
+
         ch_0 = 0
         ch_1 = 1
 
-        cond_0 = "(DD_VectorStartBin > 3500 & DD_VectorStartBin < 4500)" 
-        cond_1 = "(DD_VectorStartBin > 3500 & DD_VectorStartBin < 4500)" 
+        #cond_0 = "(DD_VectorStartBin > 3500 & DD_VectorStartBin < 4500)" 
+        #cond_1 = "(DD_VectorStartBin > 3500 & DD_VectorStartBin < 4500)" 
+
+        cond_0 = f"(CorrectedStartBin > {ontrigger_start} & CorrectedStartBin < {ontrigger_stop})" 
+        cond_1 = f"(CorrectedStartBin > {ontrigger_start} & CorrectedStartBin < {ontrigger_stop})" 
 
         print("Dropping ontrigger events")
         #df_vecs = drop_events_mi(df_vecs, cond_0, cond_1, unstacked=False)
         df_vecs = drop_events_2(df_vecs, ch_0, cond_0, unstacked=False)
         df_vecs = drop_events_2(df_vecs, ch_1, cond_1, unstacked=False)
         print("Offtrigger events successfully selected")
+        print("")
+        print(df_vecs)
 
     pretty_print(df_vecs)
     print("")
@@ -184,11 +222,11 @@ for indx, proc in enumerate(process):
         #print(df_event)
         #print("")
 
-        col1 = df_event.query("subentry == 0 | subentry == 1")["DD_VectorStartBin"] 
-        col2 = df_event.query("subentry == 0 | subentry == 1")["TimeS"].mul(10e-6) 
-        col3 = df_event.query("subentry == 0 | subentry == 1")["TimeMuS"] 
-        new_col = col1 + col2 + col3
-        df_event["DD_VectorStartBinTime"] = new_col
+        #col1 = df_event.query("subentry == 0 | subentry == 1")["DD_VectorStartBin"] 
+        #col2 = df_event.query("subentry == 0 | subentry == 1")["TimeS"].mul(10e-6) 
+        #col3 = df_event.query("subentry == 0 | subentry == 1")["TimeMuS"] 
+        #new_col = col1 + col2 + col3
+        #df_event["DD_VectorStartBinTime"] = new_col
 
         # find number of rows for current event
         nrows = len(df_event.index) 
